@@ -74,4 +74,4 @@ def rot_inv(R):
         R: 2x2 or 3x3 inverse of the input rotation matrix
     '''
     ## TODO - Fill this out
-    return np.transpose(R)
+    return np.transpose(R);

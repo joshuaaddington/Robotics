@@ -20,7 +20,7 @@ def rot2(th):
     """
 
     ## TODO - Fill this out
-    R = np.array([[cos(th), -sin(th)], [sin(th), cos(th)]]);
+    R = np.array([[cos(th), -sin(th)], [sin(th), cos(th)]])
     return R
 
 ## 3D Transformations
@@ -74,4 +74,4 @@ def rot_inv(R):
         R: 2x2 or 3x3 inverse of the input rotation matrix
     '''
     ## TODO - Fill this out
-    return np.transpose(R);
+    return np.transpose(R)

@@ -14,7 +14,7 @@ def se3(R=np.eye(3), p=np.array([0, 0, 0])):
         T - 4x4 numpy array
     """
     # TODO - fill out "T"
-    T = 
+    T = np.vstack((np.hstack((R, p.reshape(-1, 1))), np.array([0, 0, 0, 1])))
 
     return T
 
@@ -32,10 +32,10 @@ def inv(T):
     """
     
     #TODO - fill this out 
-    R = 
-    p = 
-    R_inv = 
-    p_inv = 
-    T_inv = 
+    R = T[:3, :3]
+    p = T[3:, :3]
+    R_inv = np.transpose(R)
+    p_inv = -R_inv @ p
+    T_inv = np.vstack(np.hstack(R_inv,p_inv),np.array([0,0,0,1]))
 
     return T_inv

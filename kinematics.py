@@ -12,6 +12,7 @@ Marc Killpack, Sept 21, 2022 and Sept 21, 2023
 """
 
 from transforms import *
+from visualization import VizScene 
 
 eye = np.eye(4)
 pi = np.pi
@@ -48,7 +49,14 @@ class dh2AFunc:
                 # TODO - complete code that defines the "A" or "T" homogenous matrix for a given set of DH parameters. 
                 # Do this in terms of the variables "dh" and "q" (so that one of the entries in your dh list or array
                 # will need to be added to q).
-
+                theta = dh[0] + q
+                d = dh[1]
+                a = dh[2]
+                alpha = dh[3]
+                T = np.array([[cos(theta), -sin(theta)*cos(alpha),  sin(theta)*sin(alpha), a*cos(theta)],
+                              [sin(theta),  cos(theta)*cos(alpha), -cos(theta)*sin(alpha), a*sin(theta)],
+                              [0         ,  sin(alpha)           ,  cos(alpha)           , d           ],
+                              [0         ,  0                    ,  0                    , 1           ]])
                 return T
 
 
@@ -59,7 +67,14 @@ class dh2AFunc:
                 # TODO - complete code that defines the "A" or "T" homogenous matrix for a given set of DH parameters. 
                 # Do this in terms of the variables "dh" and "q" (so that one of the entries in your dh list or array
                 # will need to be added to q).
-
+                theta = dh[0]
+                d = dh[1] + q
+                a = dh[2]
+                alpha = dh[3]
+                T = np.array([[cos(theta), -sin(theta)*cos(alpha),  sin(theta)*sin(alpha), a*cos(theta)],
+                              [sin(theta),  cos(theta)*cos(alpha), -cos(theta)*sin(alpha), a*sin(theta)],
+                              [0         ,  sin(alpha)           ,  cos(alpha)           , d           ],
+                              [0         ,  0                    ,  0                    , 1           ]])
                 return T
 
 
@@ -105,7 +120,7 @@ class SerialArm:
         for i in range(self.n):
             # TODO use the class definition above (dh2AFunc), and the dh parameters and joint type to
             # make a function and then append that function to the "transforms" list. 
-            f = 
+            f = dh2AFunc(self.dh[i], self.jt[i])
             self.transforms.append(f.A)
 
 
@@ -113,6 +128,15 @@ class SerialArm:
         self.base = base
         self.tip = tip
         self.qlim = joint_limits
+        
+        #defining reach of each arm link
+        self.reach = 0
+        for i in range(self.n):
+            self.reach += np.sqrt(self.dh[i][0]**2 + self.dh[i][2]**2)
+
+        self.max_reach = 0.0
+        for dh in self.dh:
+            self.max_reach += norm(np.array([dh[0], dh[2]]))
 
 
     def fk(self, q, index=None, base=False, tip=False):
@@ -181,10 +205,79 @@ class SerialArm:
         # unsure about the role of each of these variables. This is mostly easily done with some if/else 
         # statements and a "for" loop to add the effect of each subsequent A_i(q_i). But you can 
         # organize the code any way you like.  
-        T = np.eye(4)
+        if base and start_frame == 0:
+            T = self.base
+        else:
+            T = eye
+
+        for i in range(start_frame, end_frame):
+            T = T @ self.transforms[i](q[i])
+
+        if tip and end_frame == self.n:
+            T = T @ self.tip
 
         return T
+    
+    ##############################################################################################
+    def jacob(self, q, index=None, base=False, tip=False):
+        """
+        J = arm.jacob(q)
+        Description: 
+        Returns the geometric jacobian for the frame defined by "index", which corresponds
+        to a frame on the arm, with the arm in a given configuration defined by "q"
 
+        Parameters:
+        q - list or numpy array of joint positions
+        index - integer, which joint frame at which to calculate the Jacobian
+
+        Returns:
+        J - numpy matrix 6xN, geometric jacobian of the robot arm
+        """
+
+
+        if index is None:
+            index = self.n
+        elif index > self.n:
+            print("WARNING: Index greater than number of joints!")
+            print(f"Index: {index}")
+
+        # TODO - start by declaring a zero matrix that is the correct size for the Jacobian
+        J = np.zeros([6,self.n])
+
+        # TODO - find the current position of the point of interest (usually origin of frame "n") 
+        # using your fk function this will likely require additional intermediate variables than 
+        # what is shown here. 
+        forward_kinematics = self.fk(q, index=index, base=base, tip=tip)
+        pe = forward_kinematics[:3,3]
+
+
+        # TODO - calculate all the necessary values using your "fk" function, and fill every column
+        # of the jacobian using this "for" loop. Functions like "np.cross" may also be useful. 
+        for i in range(index):
+            # check if joint is revolute
+            zi_in_0 = self.fk(q, index = [0,i], base = base, tip = tip)[:3,2]
+            ri_in_i = self.fk(q, index = [i,self.n], base = base, tip = tip)[:3,3]
+            ri_in_0 = self.fk(q, index = [0,i], base = base, tip = tip)[:3,:3] @ ri_in_i
+            # Debugging print statements
+            # print(f"Transform for joint {i}:\n{Ai}")
+
+            if self.jt[i] == 'r':
+                J[:3,i] = np.cross(zi_in_0, ri_in_0)
+                J[3:6,i] = zi_in_0
+
+            # if not assume joint is prismatic
+            else:
+                ######  takes the z axis of the transform matrix and puts in the 0,1,2 index positions of the jacobian for that joint
+                J[:3,i] = zi_in_0
+                J[3:6,i] = np.zeros(3)
+        
+        return J
+    def torques (self, wrench, q , index = None, base = False, tip = False):
+        """Takes arguments for Jacobian and a wrench object (size 6 x self.n) and calculates the torques/ forces necesarry at
+        each joint to resist that wrench in the form of an array with shape (1 x self.n)"""
+        Tau = np.zeros([1,self.n])
+        Tau = np.transpose(self.jacob(q, index = index, base = base, tip = tip)) @ wrench
+        return Tau
 
     # You don't need to touch this function, but it is helpful to be able to "print" a description about
     # the robot that you make.
@@ -201,8 +294,138 @@ class SerialArm:
             dh_string += f"{self.dh[i][0]}\t|\t{self.dh[i][1]}\t|\t{self.dh[i][2]}\t|\t{self.dh[i][3]}\t|\t{self.jt[i]}\n"
         return "Serial Arm\n" + dh_string
 
+    #####################################################################################################
+    def ik_position(self, target, q0=None, method='J_T', force=True, tol=1e-4, K=None, kd=0.001, max_iter=100, animate=False):
+        """
+        (qf, ef, iter, reached_max_iter, status_msg) = arm.ik2(target, q0=None, method='jt', force=False, tol=1e-6, K=None)
+        Description:
+            Returns a solution to the inverse kinematics problem finding
+            joint angles corresponding to the position (x y z coords) of target
 
-if __name__ == "__main__":
+        Args:
+            target: 3x1 numpy array that defines the target location. 
+
+            q0: length of initial joint coordinates, defaults to q=0 (which is
+            often a singularity - other starting positions are recommended)
+
+            method: String describing which IK algorithm to use. Options include:
+                - 'pinv': damped pseudo-inverse solution, qdot = J_dag * e * dt, where
+                J_dag = J.T * (J * J.T + kd**2)^-1
+                - 'J_T': jacobian transpose method, qdot = J.T * K * e
+
+            force: Boolean, if True will attempt to solve even if a naive reach check
+            determines the target to be outside the reach of the arm
+
+            tol: float, tolerance in the norm of the error in pose used as termination criteria for while loop
+
+            K: 3x3 numpy matrix. For both pinv and J_T, K is the positive definite gain matrix used for both. 
+
+            kd: is a scalar used in the pinv method to make sure the matrix is invertible. 
+
+            max_iter: maximum attempts before giving up.
+
+        Returns:
+            qf: 6x1 numpy matrix of final joint values. If IK fails to converge the last set
+            of joint angles is still returned
+
+            ef: 3x1 numpy vector of the final error
+
+            count: int, number of iterations
+
+            flag: bool, "true" indicates successful IK solution and "false" unsuccessful
+
+            status_msg: A string that may be useful to understanding why it failed. 
+        """
+        # Fill in q if none given, and convert to numpy array 
+        if isinstance(q0, np.ndarray):
+            q = q0
+        elif q0 == None:
+            q = np.array([0.0]*self.n)
+        else:
+            q = np.array(q0)
+
+        # initializing some variables in case checks below don't work
+        error = None
+        count = 0
+
+        # Try basic check for if the target is in the workspace.
+        # Maximum length of the arm is sum(sqrt(d_i^2 + a_i^2)), distance to target is norm(A_t)
+        maximum_reach = 0
+        for i in range(self.n):  # Add max length of each link
+            maximum_reach = maximum_reach + np.sqrt(self.dh[i][1] ** 2 + self.dh[i][2] ** 2)
+
+        pt = target  # Find distance to target
+        target_distance = np.sqrt(pt[0] ** 2 + pt[1] ** 2 + pt[2] ** 2)
+
+        if target_distance > maximum_reach and not force:
+            print("WARNING: Target outside of reachable workspace!")
+            return q, error, count, False, "Failed: Out of workspace"
+        else:
+            if target_distance > maximum_reach:
+                print("Target out of workspace, but finding closest solution anyway")
+            else:
+                print("Target passes naive reach test, distance is {:.1} and max reach is {:.1}".format(
+                    float(target_distance), float(maximum_reach)))
+
+        if not isinstance(K, np.ndarray):
+            return q, error, count, False,  "No gain matrix 'K' provided"
+
+
+
+        # you may want to define some functions here to help with operations that you will 
+        # perform repeatedly in the while loop below. Alternatively, you can also just define 
+        # them as class functions and use them as self.<function_name>.
+
+        # for example:
+        def get_error(q):
+            cur_position = self.fk(q)[:3,3]
+            e = target - cur_position
+            return e
+        
+        error = get_error(q)
+
+        if animate == True:
+                    viz = VizScene()
+                    viz.update(qs=[q])
+                    viz.add_arm(self)
+                    viz.add_marker(target)
+        while np.linalg.norm(error) > tol and count < max_iter:
+            if method == 'J_T': # Jacobian transpose method
+                e = get_error(q)
+                J = self.jacob(q)[:len(target),:]
+                qdot = J.T @ K @ e
+                q = q + qdot
+                error = get_error(q)
+                count += 1
+                if animate == True:
+                    viz.update(qs=[q])
+            elif method == "pinv": # Pseudo-inverse method
+                e = get_error(q)
+                J = self.jacob(q)[:len(target),:]
+                J_dag = J.T @ np.linalg.inv(J @ J.T + kd**2)
+                qdot = J_dag @ e
+                q = q + qdot
+                error = get_error(q)
+                count += 1
+                if animate == True:
+                    viz.update(qs=[q])
+        # In this while loop you will update q for each iteration, and update, then
+        # your error to see if the problem has converged. You may want to print the error
+        # or the "count" at each iteration to help you see the progress as you debug. 
+        # You may even want to plot an arm initially for each iteration to make sure 
+        # it's moving in the right direction towards the target. 
+
+
+
+        # when "while" loop is done, return the relevant info. 
+
+        return (q, error, count, count < max_iter, 'No errors noted')
+
+
+
+
+
+"""if __name__ == "__main__":
     from visualization import VizScene
     import time
 
@@ -244,5 +467,5 @@ if __name__ == "__main__":
         viz.update()
         time.sleep(1.0/refresh_rate)
     
-    viz.close_viz()
+    viz.close_viz()"""
     

@@ -13,6 +13,7 @@ Marc Killpack, Sept 21, 2022 and Sept 21, 2023
 
 from transforms import *
 from visualization import VizScene 
+import time
 
 eye = np.eye(4)
 pi = np.pi
@@ -399,11 +400,12 @@ class SerialArm:
                 count += 1
                 if animate == True:
                     viz.update(qs=[q])
+                    time.sleep(.05)
             elif method == "pinv": # Pseudo-inverse method
                 e = get_error(q)
                 J = self.jacob(q)[:len(target),:]
                 J_dag = J.T @ np.linalg.inv(J @ J.T + kd**2)
-                qdot = J_dag @ e
+                qdot = J_dag @ K @ e
                 q = q + qdot
                 error = get_error(q)
                 count += 1

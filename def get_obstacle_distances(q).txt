@@ -1,0 +1,18 @@
+def get_obstacle_distances(q):
+            distances = []
+            for i in range(self.n):
+                cur_joint_position = self.fk(q, index=i)[:3,3]
+                joint_dist_to_obstacle = np.linalg.norm(obstacle - cur_joint_position)
+                distances.append(joint_dist_to_obstacle)
+            return distances
+
+
+if obstacle is not None:
+                    distances = get_obstacle_distances(q)
+                    if min(distances) < (obstacle_radius * 1.2):
+                        shortest_index = distances.index(min(distances))
+                        
+                        J_dag = J.T @ np.linalg.inv(J @ J.T + kd**2)
+                        e = -distances[shortest_index]
+                        qdot = J_dag @ K @ e
+                        q = q + qdot

@@ -61,33 +61,31 @@ def compute_robot_path(q_init, goal, obst_location, obst_radius):
       q_s = []
       error = get_error(q_init, goal)
       count = 0
-      kd = 0.1
-      K_pull = np.eye(3)* .05
-      K_push = np.eye(3)* .1
+      kd = 0.09
+      K_pull = np.eye(3)* .01
+      K_push = np.eye(3)* .02
       q = q_init
       distances = get_obstacle_distances(q_init, obst_location, obst_radius)
       q_prev = q
 
       while (np.linalg.norm(error) > 1e-4 and count < 3000): # set your stopping criteria here
-            print (get_error(q,goal))
-            if np.min((np.linalg.norm(distances, axis = 1))) < obst_radius * 2.5:
+            if np.min((np.linalg.norm(distances, axis = 1))) < obst_radius * 1.8:
                   shortest_index = np.linalg.norm(distances, axis = 1).argmin()
                   J = arm.jacob(q, index=shortest_index + 3)[:len(goal),:]
                   J_dag = J.T @ np.linalg.inv(J @ J.T + kd**2)
                   error = (get_error(q, obst_location, index = shortest_index)) * (1/(np.min(np.linalg.norm(distances, axis = 1))) * -1)
-                  q_dot = (J_dag @ K_push @ error.T) + [0,0,.05,0]
+                  q_dot = (J_dag @ K_push @ error.T) 
+                  # if (q_dot.max() > 0.01):
+                  #       q_dot = q_dot * 0.01/q_dot.max()
+                  q = q + q_dot
+            else: 
+                  e = get_error(q, goal)
+                  J = arm.jacob(q)[:len(goal),:]
+                  J_dag = J.T @ np.linalg.inv(J @ J.T + kd**2)[:len(goal),:]
+                  qdot = J_dag @ K_pull @ e
                   if (q_dot.max() > 0.01):
                         q_dot = q_dot * 0.01/q_dot.max()
-                  q = q + q_dot
-                  if (np.min(np.linalg.norm(distances, axis = 1)) < obst_radius * 1.5):
-                        q = np.array(q_prev) + .01
-            e = get_error(q, goal)
-            J = arm.jacob(q)[:len(goal),:]
-            J_dag = J.T @ np.linalg.inv(J @ J.T + kd**2)[:len(goal),:]
-            qdot = J_dag @ K_pull @ e
-            if (q_dot.max() > 0.01):
-                  q_dot = q_dot * 0.01/q_dot.max()
-            q = q + qdot
+                  q = q + qdot
             error = get_error(q, goal)
             count += 1
             distances = get_obstacle_distances(q, obst_location, obst_radius)
@@ -103,11 +101,12 @@ if __name__ == "__main__":
       # if your function works, this code should show the goal, the obstacle, and your robot moving towards the goal.
       # Please remember that to test your function, I will change the values below to see if the algorithm still works.
       q_0 = [0, 0, 0, 0]
-      goal = [0, 2, 4]
+      goal = [0, 0, 6]
       obst_position = [0, 3, 2]
       obst_rad = 1.0
 
       q_ik_slns = compute_robot_path(q_0, goal, obst_position, obst_rad)
+      print(q_ik_slns)
 
 
       # if you just want to check if you have your code set up and arm defined correctly, you can uncomment the next three lines 
@@ -130,4 +129,4 @@ if __name__ == "__main__":
             viz.update(qs=[q])
 
             # if your step in q is very small, you can shrink this time, or remove it completely to speed up your animation
-            time.sleep(0.01)
+            time.sleep(0)

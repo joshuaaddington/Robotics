@@ -101,7 +101,7 @@ if __name__ == "__main__":
       # if your function works, this code should show the goal, the obstacle, and your robot moving towards the goal.
       # Please remember that to test your function, I will change the values below to see if the algorithm still works.
       q_0 = [0, 0, 0, 0]
-      goal = [0, 0, 6]
+      goal = [0, 2, 4]
       obst_position = [0, 3, 2]
       obst_rad = 1.0
 

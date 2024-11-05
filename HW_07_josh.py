@@ -36,14 +36,6 @@ print ('the jacobian of arm 3 is:', arm_3.jacob(q = [0, 0], base = True))
 
 ArmPlayer(arm_3)
 
-#%%[markdown]
-
-# # Solution for HW 07
-# ## For Problems 1-2:
-#%%
-import kinematics_key_hw07 as kin
-from visualization import ArmPlayer
-import numpy as np
 np.set_printoptions(precision=4)
 
 # these DH parameters are based on solutions from HW 3, if you
@@ -151,4 +143,3 @@ J_at_tool_in_tool_frame = Z_6_in_tool_from_6_to_tool @ Z_0_in_6_from_6_to_6 @ J_
 
 print('Shifted Jacobian is:')
 print(J_at_tool_in_tool_frame)
-# %%

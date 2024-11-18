@@ -10,7 +10,7 @@ Tarnarmour@gmail.com
 modified by: 
 Marc Killpack, Nov. 4, 2022
 """
-
+ 
 import numpy as np
 from kinematics import SerialArm
 from utility import skew
